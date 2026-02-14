@@ -8,6 +8,7 @@ class ReminderBase(BaseModel):
     color: str = "bg-blue-400"
     icon: str = "📋"
     enabled: bool = True
+    status: str = "active"
 
 class ReminderCreate(ReminderBase):
     pass
@@ -19,6 +20,7 @@ class ReminderUpdate(BaseModel):
     color: Optional[str] = None
     icon: Optional[str] = None
     enabled: Optional[bool] = None
+    status: Optional[str] = None
 
 class ReminderResponse(ReminderBase):
     id: int

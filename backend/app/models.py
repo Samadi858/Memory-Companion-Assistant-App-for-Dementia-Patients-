@@ -11,3 +11,4 @@ class Reminder(Base):
     color = Column(String(50), default="bg-blue-400")
     icon = Column(String(10))
     enabled = Column(Integer, default=1) # Boolean as Integer 0/1
+    status = Column(String(50), default="active")
