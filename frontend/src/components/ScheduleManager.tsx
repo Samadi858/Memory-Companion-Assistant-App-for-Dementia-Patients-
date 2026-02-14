@@ -7,6 +7,7 @@ import { Label } from './ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { useLanguage } from '../contexts/LanguageContext';
 import { ScheduledItem, STORAGE_KEY } from './UnifiedScheduler';
+import { reminderService } from '../services/reminderService';
 
 interface ScheduleManagerProps {
 }
@@ -14,7 +15,7 @@ interface ScheduleManagerProps {
 export function ScheduleManager() {
   const [items, setItems] = useState<ScheduledItem[]>([]);
   const [isAdding, setIsAdding] = useState(false);
-  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<string | number | null>(null);
   const [formData, setFormData] = useState<Partial<ScheduledItem>>({
     type: 'task',
     color: 'bg-blue-400',
@@ -23,42 +24,44 @@ export function ScheduleManager() {
   });
   const { t } = useLanguage();
 
-  // Load items from localStorage
+  // Load items from API
   useEffect(() => {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored) {
-      try {
-        setItems(JSON.parse(stored));
-      } catch (e) {
-        console.error('Failed to load scheduled items:', e);
-      }
-    }
+    fetchReminders();
   }, []);
 
-  // Save items to localStorage
-  const saveItems = (newItems: ScheduledItem[]) => {
-    setItems(newItems);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(newItems));
+  const fetchReminders = async () => {
+    try {
+      const data = await reminderService.getReminders();
+      // Map API data to ScheduledItem if necessary, or just use it if compatible
+      // API returns: { id, time, name, type, color, icon, enabled }
+      // ScheduledItem: { id, time, name, type, color, icon, enabled }
+      // Perfect match except id type (number vs string).
+      setItems(data as unknown as ScheduledItem[]);
+    } catch (error) {
+      console.error('Failed to load scheduled items:', error);
+    }
   };
 
-  const handleAdd = () => {
+  const handleAdd = async () => {
     if (!formData.name || !formData.time) {
       return;
     }
 
-    const newItem: ScheduledItem = {
-      id: Date.now().toString(),
-      type: formData.type || 'task',
-      name: formData.name,
-      time: formData.time,
-      color: formData.color || 'bg-blue-400',
-      icon: formData.type === 'task' ? formData.icon : undefined,
-      enabled: true,
-    };
-
-    saveItems([...items, newItem]);
-    setIsAdding(false);
-    setFormData({ type: 'task', color: 'bg-blue-400', icon: '📋', enabled: true });
+    try {
+      await reminderService.createReminder({
+        name: formData.name,
+        time: formData.time,
+        type: formData.type,
+        color: formData.color,
+        icon: formData.type === 'task' ? formData.icon : undefined,
+        enabled: true,
+      });
+      fetchReminders();
+      setIsAdding(false);
+      setFormData({ type: 'task', color: 'bg-blue-400', icon: '📋', enabled: true });
+    } catch (error) {
+      console.error('Failed to add reminder:', error);
+    }
   };
 
   const handleEdit = (item: ScheduledItem) => {
@@ -66,27 +69,44 @@ export function ScheduleManager() {
     setFormData(item);
   };
 
-  const handleUpdate = () => {
+  const handleUpdate = async () => {
     if (!editingId || !formData.name || !formData.time) return;
 
-    const updatedItems = items.map(item =>
-      item.id === editingId ? { ...item, ...formData } as ScheduledItem : item
-    );
-    
-    saveItems(updatedItems);
-    setEditingId(null);
-    setFormData({ type: 'task', color: 'bg-blue-400', icon: '📋', enabled: true });
+    try {
+      await reminderService.updateReminder(editingId, {
+        name: formData.name,
+        time: formData.time,
+        type: formData.type,
+        color: formData.color,
+        icon: formData.icon,
+        enabled: formData.enabled
+      });
+      fetchReminders();
+      setEditingId(null);
+      setFormData({ type: 'task', color: 'bg-blue-400', icon: '📋', enabled: true });
+    } catch (error) {
+      console.error('Failed to update reminder:', error);
+    }
   };
 
-  const handleDelete = (id: string, name: string) => {
-    saveItems(items.filter(item => item.id !== id));
+  const handleDelete = async (id: string | number, name: string) => {
+    try {
+      await reminderService.deleteReminder(id);
+      fetchReminders();
+    } catch (error) {
+      console.error('Failed to delete reminder:', error);
+    }
   };
 
-  const handleToggleEnabled = (id: string) => {
-    const updatedItems = items.map(item =>
-      item.id === id ? { ...item, enabled: !item.enabled } : item
-    );
-    saveItems(updatedItems);
+  const handleToggleEnabled = async (item: ScheduledItem) => {
+    try {
+      await reminderService.updateReminder(item.id, {
+        enabled: !item.enabled
+      });
+      fetchReminders();
+    } catch (error) {
+      console.error('Failed to toggle reminder:', error);
+    }
   };
 
   const colorOptions = [
@@ -140,8 +160,8 @@ export function ScheduleManager() {
               {/* Type */}
               <div className="space-y-2">
                 <Label className="text-lg">Type</Label>
-                <Select 
-                  value={formData.type} 
+                <Select
+                  value={formData.type}
                   onValueChange={(value) => setFormData({ ...formData, type: value as 'medication' | 'task' })}
                 >
                   <SelectTrigger className="text-lg py-6">
@@ -189,8 +209,8 @@ export function ScheduleManager() {
               {/* Color */}
               <div className="space-y-2">
                 <Label className="text-lg">Color</Label>
-                <Select 
-                  value={formData.color} 
+                <Select
+                  value={formData.color}
                   onValueChange={(value) => setFormData({ ...formData, color: value })}
                 >
                   <SelectTrigger className="text-lg py-6">
@@ -213,8 +233,8 @@ export function ScheduleManager() {
               {formData.type === 'task' && (
                 <div className="space-y-2">
                   <Label className="text-lg">Icon</Label>
-                  <Select 
-                    value={formData.icon} 
+                  <Select
+                    value={formData.icon}
                     onValueChange={(value) => setFormData({ ...formData, icon: value })}
                   >
                     <SelectTrigger className="text-lg py-6">
@@ -254,18 +274,17 @@ export function ScheduleManager() {
           </Card>
         ) : (
           sortedItems.map((item) => (
-            <Card 
-              key={item.id} 
-              className={`p-5 transition-all ${
-                item.enabled 
-                  ? 'bg-white hover:shadow-lg' 
-                  : 'bg-gray-100 opacity-60'
-              }`}
+            <Card
+              key={item.id}
+              className={`p-5 transition-all ${item.enabled
+                ? 'bg-white hover:shadow-lg'
+                : 'bg-gray-100 opacity-60'
+                }`}
             >
               <div className="flex items-center gap-4">
                 {/* Toggle Enabled */}
                 <button
-                  onClick={() => handleToggleEnabled(item.id)}
+                  onClick={() => handleToggleEnabled(item)}
                   className="flex-shrink-0"
                 >
                   {item.enabled ? (

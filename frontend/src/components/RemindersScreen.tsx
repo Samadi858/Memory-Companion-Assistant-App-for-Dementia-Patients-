@@ -8,32 +8,44 @@ interface RemindersScreenProps {
   onSpeak: (text: string) => void;
 }
 
-interface Reminder {
-  id: string;
-  time: string;
-  activity: string;
-  icon: string;
-}
 
-const initialReminders: Reminder[] = [
-  { id: '1', time: '8:00 AM', activity: 'Take morning medicine', icon: '💊' },
-  { id: '2', time: '9:00 AM', activity: 'Breakfast time', icon: '🍳' },
-  { id: '3', time: '12:00 PM', activity: 'Lunch time', icon: '🍽️' },
-  { id: '4', time: '2:00 PM', activity: 'Take afternoon medicine', icon: '💊' },
-  { id: '5', time: '6:00 PM', activity: 'Dinner time', icon: '🍽️' },
-  { id: '6', time: '9:00 PM', activity: 'Take evening medicine', icon: '💊' },
-];
+
+import { reminderService, Reminder } from '../services/reminderService';
+import { useEffect } from 'react';
+
+// ... interface Reminder removed as it's imported now
 
 export function RemindersScreen({ onNavigate, onSpeak }: RemindersScreenProps) {
-  const [reminders, setReminders] = useState(initialReminders);
+  const [reminders, setReminders] = useState<Reminder[]>([]);
 
-  const handleDelete = (id: string, activity: string) => {
-    setReminders(reminders.filter(r => r.id !== id));
-    onSpeak(`Deleted reminder: ${activity}`);
+  useEffect(() => {
+    loadReminders();
+  }, []);
+
+  const loadReminders = async () => {
+    try {
+      const data = await reminderService.getReminders();
+      // Filter only enabled reminders for patient view if needed, or backend handles it.
+      // Assuming we show all or just enabled. Let's show all for now or filter by enabled.
+      // Patient view usually only shows what's active.
+      setReminders(data.filter(r => r.enabled));
+    } catch (error) {
+      console.error("Failed to load reminders", error);
+    }
+  };
+
+  const handleDelete = async (id: number, name: string) => {
+    try {
+      await reminderService.deleteReminder(id);
+      onSpeak(`Deleted reminder: ${name}`);
+      loadReminders();
+    } catch (error) {
+      console.error("Failed to delete reminder", error);
+    }
   };
 
   const handleReadReminder = (reminder: Reminder) => {
-    onSpeak(`Reminder at ${reminder.time}: ${reminder.activity}`);
+    onSpeak(`Reminder at ${reminder.time}: ${reminder.name}`);
   };
 
   return (
@@ -49,7 +61,7 @@ export function RemindersScreen({ onNavigate, onSpeak }: RemindersScreenProps) {
           <ArrowLeft className="w-8 h-8 mr-2" />
           Back to Home
         </Button>
-        
+
         <Button
           size="lg"
           onClick={() => onSpeak('Add new reminder feature coming soon')}
@@ -77,10 +89,10 @@ export function RemindersScreen({ onNavigate, onSpeak }: RemindersScreenProps) {
               <Card key={reminder.id} className="p-6 hover:shadow-lg transition-shadow">
                 <div className="flex items-center gap-6">
                   <div className="text-6xl flex-shrink-0">{reminder.icon}</div>
-                  
+
                   <div className="flex-1 space-y-2">
                     <p className="text-3xl text-primary">{reminder.time}</p>
-                    <p className="text-2xl">{reminder.activity}</p>
+                    <p className="text-2xl">{reminder.name}</p>
                   </div>
 
                   <div className="flex gap-3 flex-shrink-0">
@@ -92,11 +104,11 @@ export function RemindersScreen({ onNavigate, onSpeak }: RemindersScreenProps) {
                     >
                       <Volume2 className="w-8 h-8" />
                     </Button>
-                    
+
                     <Button
                       variant="destructive"
                       size="lg"
-                      onClick={() => handleDelete(reminder.id, reminder.activity)}
+                      onClick={() => handleDelete(reminder.id, reminder.name)}
                       className="px-6 py-6"
                     >
                       <Trash2 className="w-8 h-8" />

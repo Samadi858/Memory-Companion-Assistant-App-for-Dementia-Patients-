@@ -8,7 +8,7 @@ interface UnifiedSchedulerProps {
 }
 
 export interface ScheduledItem {
-  id: string;
+  id: string | number;
   type: 'medication' | 'task';
   name: string;
   time: string; // HH:MM format
@@ -60,47 +60,47 @@ export function UnifiedScheduler() {
       const now = new Date();
       const currentDay = now.getDay(); // 0-6
       const currentTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
-      
+
       // Check if any item is due (within 5 minutes window)
       const dueItem = scheduledItems.find(item => {
         if (!item.enabled) return false;
-        
+
         // Check if item should run today
         if (item.days && !item.days.includes(currentDay)) {
           return false;
         }
-        
+
         const [hour, minute] = item.time.split(':').map(Number);
         const itemTime = new Date();
         itemTime.setHours(hour, minute, 0, 0);
-        
+
         const diff = Math.abs(now.getTime() - itemTime.getTime()) / (1000 * 60); // difference in minutes
-        
+
         return diff <= 5 && !dismissed.has(`${item.id}-${currentTime.split(':')[0]}`);
       });
-      
+
       if (dueItem && !activeAlert) {
         setActiveAlert(dueItem);
         playAlertSound();
-        
-        const itemName = dueItem.type === 'task' && dueItem.icon 
-          ? t(dueItem.name) 
+
+        const itemName = dueItem.type === 'task' && dueItem.icon
+          ? t(dueItem.name)
           : t(dueItem.name);
-        
-        const alertMessage = dueItem.type === 'medication' 
+
+        const alertMessage = dueItem.type === 'medication'
           ? `${t('reminder.medication')} ${itemName}`
           : `${t('reminder.task')} ${itemName}`;
-          
+
         // onSpeak(alertMessage);
       }
     };
 
     // Check immediately
     checkScheduledTime();
-    
+
     // Check every minute
     const interval = setInterval(checkScheduledTime, 60000);
-    
+
     return () => clearInterval(interval);
   }, [activeAlert, dismissed, t, scheduledItems]);
 
@@ -110,16 +110,16 @@ export function UnifiedScheduler() {
       const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
       const oscillator = audioContext.createOscillator();
       const gainNode = audioContext.createGain();
-      
+
       oscillator.connect(gainNode);
       gainNode.connect(audioContext.destination);
-      
+
       oscillator.frequency.value = 800;
       oscillator.type = 'sine';
-      
+
       gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
       gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
-      
+
       oscillator.start(audioContext.currentTime);
       oscillator.stop(audioContext.currentTime + 0.5);
     } catch (e) {
@@ -140,7 +140,7 @@ export function UnifiedScheduler() {
     if (activeAlert) {
       setActiveAlert(null);
       // onSpeak(t('reminder.snooze'));
-      
+
       // Re-show alert after 10 minutes
       setTimeout(() => {
         setActiveAlert(activeAlert);
@@ -158,11 +158,10 @@ export function UnifiedScheduler() {
           exit={{ opacity: 0, y: 50, scale: 0.9 }}
           className="fixed bottom-8 left-1/2 -translate-x-1/2 z-50 w-full max-w-2xl px-4"
         >
-          <div className={`rounded-3xl shadow-2xl p-8 border-4 border-white ${
-            activeAlert.type === 'medication'
+          <div className={`rounded-3xl shadow-2xl p-8 border-4 border-white ${activeAlert.type === 'medication'
               ? 'bg-gradient-to-r from-orange-500 to-red-500'
               : 'bg-gradient-to-r from-blue-500 to-purple-500'
-          }`}>
+            }`}>
             {/* Close button */}
             <button
               onClick={handleDismiss}
@@ -191,7 +190,7 @@ export function UnifiedScheduler() {
                 <h3 className="text-[2.5rem] mb-4">
                   {activeAlert.type === 'medication' ? t('reminder.medication') : t('reminder.task')}
                 </h3>
-                
+
                 <div className="flex items-center gap-4 mb-6">
                   <div className={`w-16 h-16 ${activeAlert.color} rounded-full flex items-center justify-center shadow-lg`}>
                     {activeAlert.type === 'medication' ? (
