@@ -1,17 +1,40 @@
-# Memory-Companion-Assistant-App-for-Dementia-Patients
+Memory-Companion-Assistant-App-for-Dementia-Patients-and-Caregivers
 
-**Memory Companion** is an assistive system designed to bridge the care gap for early-stage dementia patients. It addresses the challenges of memory loss and caregiver burden through a dual-interface Progressive Web App (PWA). The system is built with an **Offline First architecture**, ensuring that critical alerts and schedules function reliably on standard smartphones even without an active internet connection.
+Memory Companion is a dedicated web-based assistive system designed to bridge the care gap for early-to-mid-stage dementia patients and their dedicated caregivers. It addresses the challenges of memory loss and caregiver burnout through a dual-interface web application. The system provides a highly accessible, cognitively simplified interface for patients, alongside a secure, comprehensive remote management dashboard that empowers family members to monitor, schedule, and support their loved ones effortlessly, providing true peace of mind.
 
-## Key Objectives
+Key Objectives & Features
 
-### For Patients (Non-family caregivers):
+For Patients:
 
-* A **Visual First** interface that triggers routine reminders using visual cues.
+Today's Schedule
 
-### For Guardian/Caregivers (Family members only):
+Visual-First Reminders
 
-* A secure, **remote dashboard** to:
-    * Manage schedules.
-    * Upload family photos.
-    * Monitor patient activity logs.
+Photo Memory Gallery
+
+Memory Diary & Mood Tracker
+
+Emergency SOS
+
+For Family Members / Guardians (Caregivers):
+
+Remote Admin Dashboard
+
+Schedule Management
+
+Activity Monitoring
+
+System Reports
+
+Photo Database Management
+
+System Settings
+
+Tech Stack
+
+Frontend: React.js
+
+Backend: Python FastAPI
+
+Database: MySQL
 
