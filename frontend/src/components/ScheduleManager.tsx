@@ -5,7 +5,6 @@ import { Card } from './ui/card';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
-import { useLanguage } from '../contexts/LanguageContext';
 import { ScheduledItem, STORAGE_KEY } from './UnifiedScheduler';
 import { reminderService } from '../services/reminderService';
 
@@ -15,30 +14,52 @@ interface ScheduleManagerProps {
 export function ScheduleManager() {
   const [items, setItems] = useState<ScheduledItem[]>([]);
   const [isAdding, setIsAdding] = useState(false);
-  const [editingId, setEditingId] = useState<string | number | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [formData, setFormData] = useState<Partial<ScheduledItem>>({
     type: 'task',
     color: 'bg-blue-400',
     icon: '📋',
     enabled: true,
   });
-  const { t } = useLanguage();
 
-  // Load items from API
   useEffect(() => {
-    fetchReminders();
+    void fetchReminders();
   }, []);
+
+  const toScheduledItem = (reminder: {
+    id: number;
+    time: string;
+    name: string;
+    type: string;
+    frequency?: string;
+    image_url?: string | null;
+    color: string;
+    icon: string;
+    enabled: boolean;
+  }): ScheduledItem => ({
+    id: String(reminder.id),
+    time: reminder.time,
+    name: reminder.name,
+    type: reminder.type === 'medication' ? 'medication' : 'task',
+    frequency: reminder.frequency || 'daily',
+    image_url: reminder.image_url || undefined,
+    color: reminder.color || 'bg-blue-400',
+    icon: reminder.icon || '📋',
+    enabled: Boolean(reminder.enabled),
+  });
+
+  const saveItems = (newItems: ScheduledItem[]) => {
+    setItems(newItems);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(newItems));
+  };
 
   const fetchReminders = async () => {
     try {
-      const data = await reminderService.getReminders();
-      // Map API data to ScheduledItem if necessary, or just use it if compatible
-      // API returns: { id, time, name, type, color, icon, enabled }
-      // ScheduledItem: { id, time, name, type, color, icon, enabled }
-      // Perfect match except id type (number vs string).
-      setItems(data as unknown as ScheduledItem[]);
+      const reminders = await reminderService.getReminders();
+      const mapped = reminders.map(toScheduledItem);
+      saveItems(mapped);
     } catch (error) {
-      console.error('Failed to load scheduled items:', error);
+      console.error('Failed to load reminders:', error);
     }
   };
 
@@ -51,12 +72,14 @@ export function ScheduleManager() {
       await reminderService.createReminder({
         name: formData.name,
         time: formData.time,
-        type: formData.type,
-        color: formData.color,
+        type: formData.type || 'task',
+        frequency: 'daily',
+        image_url: null,
+        color: formData.color || 'bg-blue-400',
         icon: formData.type === 'task' ? formData.icon : undefined,
         enabled: true,
       });
-      fetchReminders();
+      await fetchReminders();
       setIsAdding(false);
       setFormData({ type: 'task', color: 'bg-blue-400', icon: '📋', enabled: true });
     } catch (error) {
@@ -70,18 +93,22 @@ export function ScheduleManager() {
   };
 
   const handleUpdate = async () => {
-    if (!editingId || !formData.name || !formData.time) return;
+    if (!editingId || !formData.name || !formData.time) {
+      return;
+    }
 
     try {
       await reminderService.updateReminder(editingId, {
         name: formData.name,
         time: formData.time,
         type: formData.type,
+        frequency: formData.frequency || 'daily',
+        image_url: formData.image_url || null,
         color: formData.color,
         icon: formData.icon,
-        enabled: formData.enabled
+        enabled: formData.enabled,
       });
-      fetchReminders();
+      await fetchReminders();
       setEditingId(null);
       setFormData({ type: 'task', color: 'bg-blue-400', icon: '📋', enabled: true });
     } catch (error) {
@@ -89,21 +116,26 @@ export function ScheduleManager() {
     }
   };
 
-  const handleDelete = async (id: string | number, name: string) => {
+  const handleDelete = async (id: string, _name: string) => {
     try {
       await reminderService.deleteReminder(id);
-      fetchReminders();
+      await fetchReminders();
     } catch (error) {
       console.error('Failed to delete reminder:', error);
     }
   };
 
-  const handleToggleEnabled = async (item: ScheduledItem) => {
+  const handleToggleEnabled = async (id: string) => {
+    const target = items.find((item) => item.id === id);
+    if (!target) {
+      return;
+    }
+
     try {
-      await reminderService.updateReminder(item.id, {
-        enabled: !item.enabled
+      await reminderService.updateReminder(id, {
+        enabled: !target.enabled,
       });
-      fetchReminders();
+      await fetchReminders();
     } catch (error) {
       console.error('Failed to toggle reminder:', error);
     }
@@ -120,7 +152,6 @@ export function ScheduleManager() {
   ];
 
   const iconOptions = ['📋', '🍽️', '🚶', '🎵', '💊', '☕', '🌙', '📖', '🧘', '🏃'];
-
   const sortedItems = [...items].sort((a, b) => a.time.localeCompare(b.time));
 
   return (
@@ -137,7 +168,6 @@ export function ScheduleManager() {
         </Button>
       </div>
 
-      {/* Add/Edit Form */}
       {(isAdding || editingId) && (
         <Card className="p-6 bg-blue-50 border-2 border-blue-300">
           <div className="space-y-4">
@@ -157,7 +187,6 @@ export function ScheduleManager() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Type */}
               <div className="space-y-2">
                 <Label className="text-lg">Type</Label>
                 <Select
@@ -184,7 +213,6 @@ export function ScheduleManager() {
                 </Select>
               </div>
 
-              {/* Name */}
               <div className="space-y-2">
                 <Label className="text-lg">Name/Description</Label>
                 <Input
@@ -195,7 +223,6 @@ export function ScheduleManager() {
                 />
               </div>
 
-              {/* Time */}
               <div className="space-y-2">
                 <Label className="text-lg">Time</Label>
                 <Input
@@ -206,7 +233,6 @@ export function ScheduleManager() {
                 />
               </div>
 
-              {/* Color */}
               <div className="space-y-2">
                 <Label className="text-lg">Color</Label>
                 <Select
@@ -229,7 +255,6 @@ export function ScheduleManager() {
                 </Select>
               </div>
 
-              {/* Icon (for tasks only) */}
               {formData.type === 'task' && (
                 <div className="space-y-2">
                   <Label className="text-lg">Icon</Label>
@@ -266,7 +291,6 @@ export function ScheduleManager() {
         </Card>
       )}
 
-      {/* Items List */}
       <div className="space-y-3">
         {sortedItems.length === 0 ? (
           <Card className="p-12 text-center">
@@ -276,15 +300,15 @@ export function ScheduleManager() {
           sortedItems.map((item) => (
             <Card
               key={item.id}
-              className={`p-5 transition-all ${item.enabled
-                ? 'bg-white hover:shadow-lg'
-                : 'bg-gray-100 opacity-60'
-                }`}
+              className={`p-5 transition-all ${
+                item.enabled
+                  ? 'bg-white hover:shadow-lg'
+                  : 'bg-gray-100 opacity-60'
+              }`}
             >
               <div className="flex items-center gap-4">
-                {/* Toggle Enabled */}
                 <button
-                  onClick={() => handleToggleEnabled(item)}
+                  onClick={() => void handleToggleEnabled(item.id)}
                   className="flex-shrink-0"
                 >
                   {item.enabled ? (
@@ -294,7 +318,6 @@ export function ScheduleManager() {
                   )}
                 </button>
 
-                {/* Icon/Type */}
                 <div className={`w-14 h-14 ${item.color} rounded-full flex items-center justify-center shadow-md flex-shrink-0`}>
                   {item.type === 'medication' ? (
                     <Pill className="w-7 h-7 text-white" />
@@ -303,7 +326,6 @@ export function ScheduleManager() {
                   )}
                 </div>
 
-                {/* Info */}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1">
                     <Clock className="w-5 h-5 text-primary flex-shrink-0" />
@@ -315,7 +337,6 @@ export function ScheduleManager() {
                   <p className="text-xl truncate">{item.name}</p>
                 </div>
 
-                {/* Actions */}
                 <div className="flex gap-2 flex-shrink-0">
                   <Button
                     variant="outline"
@@ -328,7 +349,7 @@ export function ScheduleManager() {
                   <Button
                     variant="destructive"
                     size="lg"
-                    onClick={() => handleDelete(item.id, item.name)}
+                    onClick={() => void handleDelete(item.id, item.name)}
                     className="px-4 py-6"
                   >
                     <Trash2 className="w-6 h-6" />
