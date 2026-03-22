@@ -1,6 +1,0 @@
-venv
-.env
-app/__pycache__
-**/__pycache__
-**/__pycache__/*
-**/__pycache__/**
