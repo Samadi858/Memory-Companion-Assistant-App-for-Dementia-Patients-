@@ -33,6 +33,7 @@ This project is fully containerized. Using Docker is the standard and easiest wa
    git clone [https://github.com/Samadi858/Memory-Companion-Assistant-App-for-Dementia-Patients-.git](https://github.com/Samadi858/Memory-Companion-Assistant-App-for-Dementia-Patients-.git)
    cd Memory-Companion-Assistant-App-for-Dementia-Patients-
 3. Build and start the containers:
+   ```bash
    docker-compose up --build
 4. Access the application in your browser at: http://localhost:3000  
 
