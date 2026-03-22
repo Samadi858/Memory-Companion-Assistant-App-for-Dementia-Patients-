@@ -1,0 +1,14 @@
+fastapi
+uvicorn
+sqlalchemy
+pymysql
+aiomysql
+python-dotenv
+pydantic
+cryptography
+python-jose[cryptography]
+passlib[bcrypt]
+email-validator
+minio
+python-multipart
+reportlab
